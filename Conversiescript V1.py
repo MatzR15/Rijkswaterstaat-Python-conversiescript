@@ -1,6 +1,77 @@
 import arcpy
 import os
 
+# ─── CONFIGURATIE EXTRACTIE ───────────────────────────────────────────────────
+
+# GDB waar de grote bronlaag in staat <BOL>NIET WIJZIGEN</BOL>
+EXTRACTIE_GDB = r"G:\civ\IGA_ATG\Producten\BGT\stages\Stage Matz Robijn\Bronbestand_1GISxBGT_Conversie.gdb"
+
+# GDB waar de geëxtraheerde losse feature classes naartoe worden geschreven
+# Dit is dezelfde als de BRON_GDB in het conversiescript
+BRON_GDB = r"G:\civ\IGA_ATG\Producten\BGT\stages\Stage Matz Robijn\Originele shapefiles.gdb"
+
+# Definieer welke objecten uit welke laag gehaald moeten worden
+# Formaat: ("Laagnaam_in_GDB", "Veldnaam_in_attribuuttabel", "Waarde_om_op_te_filteren", "Output_naam_in_BRON_GDB")
+EXTRACTIES = [
+    ("lMeubilair", "type", "Waarschuwingshek", "Waarschuwingshek")
+    ("vMeubilairEnVoorziening", "type", "Zonnepaneel", "Zonnepaneel")
+    ("lKunstwerk", "type", "Coupure", "Coupure")
+    ("pKunstwerkdeel", "type", "Pijler", "Pijler")
+    ("vKunstwerkdeel", "type", "Damwand", "Damwand")
+    ("lWater", "type", "Greppel", "Greppel")
+    ("vKunstwerkdeel", "type", "Muur", "Muur")
+    # Voeg hier meer objecten toe op dezelfde manier
+]
+
+arcpy.env.overwriteOutput = True
+
+# ─── EXTRACTIE UITVOEREN ──────────────────────────────────────────────────────
+
+print("=" * 60)
+print("EXTRACTIE: Objecten filteren uit bronlagen")
+print("=" * 60)
+
+geslaagd = 0
+mislukt = 0
+
+for laag_naam, veld_naam, filter_waarde, output_naam in EXTRACTIES:
+    bron_laag = os.path.join(EXTRACTIE_GDB, laag_naam)
+    output_fc = os.path.join(BRON_GDB, output_naam)
+
+    print(f"\n[{laag_naam}] filter: {veld_naam} = '{filter_waarde}' → {output_naam}")
+
+    if not arcpy.Exists(bron_laag):
+        print(f"  FOUT: Bronlaag niet gevonden: {bron_laag}")
+        mislukt += 1
+        continue
+
+    try:
+        # Maak een where-clause om op te filteren
+        where_clause = f"{veld_naam} = '{filter_waarde}'"
+
+        # Exporteer de gefilterde objecten naar de BRON_GDB
+        arcpy.conversion.ExportFeatures(
+            in_features=bron_laag,
+            out_features=output_fc,
+            where_clause=where_clause
+        )
+
+        count = int(arcpy.management.GetCount(output_fc)[0])
+        print(f"  ✓ {count} objecten geëxporteerd naar: {output_naam}")
+        geslaagd += 1
+
+    except Exception as e:
+        print(f"  FOUT bij exporteren: {e}")
+        mislukt += 1
+
+print("\n" + "=" * 60)
+print(f"Extractie voltooid: {geslaagd} geslaagd, {mislukt} mislukt")
+print("=" * 60)
+print("\nJe kunt nu cel 1 t/m 4 uitvoeren voor de conversie.")
+
+import arcpy
+import os
+
 #Voer hier de naam in van de Geodatabase waar de shapefiles te vinden zijn.
 BRON_GDB = r"G:\civ\IGA_ATG\Producten\BGT\stages\Stage Matz Robijn\Originele shapefiles.gdb"
 
@@ -15,8 +86,7 @@ CONVERSIES = [
     ("Pijler",           "POINT",     "POLYGON", "Pijler_vlak"),
     ("Damwand",          "POLYGON",   "POLYLINE","Damwand_lijn"),
     ("Greppel",          "POLYLINE",  "POLYGON", "Greppel_vlak"),
-    ("Muur",             "POLYGON",   "POLYLINE","Muur_lijn"),
-    ("Boomgroep", "POLYGON", "POINT","Boomgroep_punt"),  
+    ("Muur",             "POLYGON",   "POLYLINE","Muur_lijn"), 
 ]
 
 # Voer hier de gewenste kolommen in die moeten worden overgezet in vaste volgorde (OBJECTID en SHAPE worden automatisch overgezet)
